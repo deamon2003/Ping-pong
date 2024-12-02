@@ -1,94 +1,152 @@
-#include "raylib.h"
+#include <raylib.h>
+#include <iostream>
+
+Color Green =  Color{38, 185, 154, 255};
+Color darkGreen = Color{20,160,133,255};
+Color lightGreen = Color{129,204,184,255};
+Color Yellow = Color{243,213,91,255};
+
+int playerScore = 0;
+int cpuScore = 0;
+
+class Ball {
+    public:
+        float x, y;
+        int speedX, speedY;
+        int radius;
+
+        void Draw() {
+            DrawCircle(x, y, radius, Yellow);
+        }
+
+        void Update() {
+            x += speedX;
+            y += speedY;
+
+            if (y + radius >= GetScreenHeight() || y - radius <= 0) {
+                speedY *= -1;
+            }
+            if (x + radius >= GetScreenWidth()) { // cpu wins
+                cpuScore++;
+                RestBall();
+            } 
+            
+            if(x - radius <= 0) {
+                playerScore++;
+                RestBall();
+            }
+        }
+
+        void RestBall() {
+            x = GetScreenWidth()/2;
+            y = GetScreenHeight()/2;
+
+            int speedChoices[2] = {-1,1};
+            speedX *= speedChoices[GetRandomValue(0,1)];
+            speedY *= speedChoices[GetRandomValue(0,1)];
+        }
+};
+
+class Paddle {
+    protected:
+        void LimitMovement() {
+            if (y <= 0) {
+                y = 0;
+            }
+            if (y + height >= GetScreenHeight()) {
+                y = GetScreenHeight() - height;
+            }
+        }
+    public:
+        float x, y;
+        float width, height;
+        int speed;
+
+        void Draw() {
+            DrawRectangleRounded(Rectangle{x,y,width,height}, 0.8,0,WHITE);
+        }
+        void Update() {
+            if (IsKeyDown(KEY_UP)) {
+                y = y - speed;
+            } else if (IsKeyDown(KEY_DOWN)) {
+                y = y + speed;
+            }
+            LimitMovement();
+        }
+};
+
+class CpuPaddle : public Paddle{
+    public:
+        void Update(int ball_y) {
+            if (y + height/2 > ball_y) {
+                y = y - speed;
+            } else if (y + height/2 <= ball_y) {
+                y = y + speed;
+            }
+            LimitMovement();
+        }
+};
+
+Ball ball;
+Paddle player;
+CpuPaddle cpu;
 
 int main() {
-    // Initialization
-    const int screenWidth = 800;
-    const int screenHeight = 600;
 
-    InitWindow(screenWidth, screenHeight, "Ping Pong Game");
+    const int screenWidth = 1280;
+    const int screenHeight = 800;
+
+    ball.radius = 20;
+    ball.x = screenWidth/2;
+    ball.y = screenHeight/2;
+    ball.speedX = 7;
+    ball.speedY = 7;
+
+    player.width = 25;
+    player.height = 120;
+    player.x = screenWidth - player.width - 10;
+    player.y = screenHeight/2 - player.height/2;
+    player.speed = 7;
+
+    cpu.height = 120;
+    cpu.width = 25;
+    cpu.x = 10;
+    cpu.y = screenHeight/2 - cpu.height/2;
+    cpu.speed = 7;
+
+    InitWindow(screenWidth,screenHeight,"!!! Ping pong Game !!!");
     SetTargetFPS(60);
 
-    // Ball properties
-    Vector2 ballPosition = { screenWidth / 2.0f, screenHeight / 2.0f };
-    Vector2 ballSpeed = { 4.0f, 4.0f };
-    const float ballRadius = 10.0f;
-
-    // Paddle properties
-    const int paddleWidth = 10;
-    const int paddleHeight = 100;
-    const float paddleSpeed = 6.0f;
-
-    Rectangle player1Paddle = { 20, (float)(screenHeight / 2 - paddleHeight / 2), (float)paddleWidth, (float)paddleHeight };
-    Rectangle player2Paddle = { (float)(screenWidth - 30), (float)(screenHeight / 2 - paddleHeight / 2), (float)paddleWidth, (float)paddleHeight };
-
-    int player1Score = 0;
-    int player2Score = 0;
-
-    // Main game loop
-    while (!WindowShouldClose()) {
-        // Update
-        // Player 1 controls (W/S)
-        if (IsKeyDown(KEY_W) && player1Paddle.y > 0) player1Paddle.y -= paddleSpeed;
-        if (IsKeyDown(KEY_S) && player1Paddle.y < screenHeight - paddleHeight) player1Paddle.y += paddleSpeed;
-
-        // Player 2 controls (Up/Down arrows)
-        if (IsKeyDown(KEY_UP) && player2Paddle.y > 0) player2Paddle.y -= paddleSpeed;
-        if (IsKeyDown(KEY_DOWN) && player2Paddle.y < screenHeight - paddleHeight) player2Paddle.y += paddleSpeed;
-
-        // Move ball
-        ballPosition.x += ballSpeed.x;
-        ballPosition.y += ballSpeed.y;
-
-        // Ball collision with top and bottom walls
-        if (ballPosition.y <= ballRadius || ballPosition.y >= screenHeight - ballRadius) {
-            ballSpeed.y *= -1; // Reverse vertical direction
-        }
-
-        // Ball collision with paddles
-        if (CheckCollisionCircleRec(ballPosition, ballRadius, player1Paddle)) {
-            ballSpeed.x *= -1.1f; // Reverse horizontal direction and increase speed
-            ballPosition.x = player1Paddle.x + paddleWidth + ballRadius; // Prevent sticking
-        }
-        if (CheckCollisionCircleRec(ballPosition, ballRadius, player2Paddle)) {
-            ballSpeed.x *= -1.1f;
-            ballPosition.x = player2Paddle.x - ballRadius; // Prevent sticking
-        }
-
-        // Check for scoring
-        if (ballPosition.x < 0) {
-            player2Score++;
-            ballPosition = { screenWidth / 2.0f, screenHeight / 2.0f };
-            ballSpeed = { 4.0f, 4.0f };
-        }
-        if (ballPosition.x > screenWidth) {
-            player1Score++;
-            ballPosition = { screenWidth / 2.0f, screenHeight / 2.0f };
-            ballSpeed = { -4.0f, -4.0f };
-        }
-
-        // Draw
+    while (WindowShouldClose() == false) {
         BeginDrawing();
-        ClearBackground(BLACK);
 
-        // Draw ball
-        DrawCircleV(ballPosition, ballRadius, WHITE);
+        ball.Update();
+        player.Update();
+        cpu.Update(ball.y);
+        
+        ClearBackground(darkGreen);
+        DrawRectangle(screenWidth/2, 0, screenWidth/2, screenHeight, Green);
+        DrawCircle(screenWidth/2, screenHeight/2, 150, lightGreen);
 
-        // Draw paddles
-        DrawRectangleRec(player1Paddle, WHITE);
-        DrawRectangleRec(player2Paddle, WHITE);
+        if (CheckCollisionCircleRec(Vector2{ball.x, ball.y}, ball.radius, Rectangle{player.x, player.y, player.width, player.height})) {
+            ball.speedX *= -1;
+        }
+        if (CheckCollisionCircleRec(Vector2{ball.x, ball.y}, ball.radius, Rectangle{cpu.x, cpu.y, cpu.width, cpu.height})) {
+            ball.speedX *= -1;
+        }
 
-        // Draw score
-        DrawText(TextFormat("%d", player1Score), screenWidth / 4, 20, 40, WHITE);
-        DrawText(TextFormat("%d", player2Score), 3 * screenWidth / 4, 20, 40, WHITE);
+        DrawLine(screenWidth/2, 0, screenWidth/2, screenHeight, WHITE);
+        ball.Draw();        
 
-        DrawText("Ping Pong Game!", screenWidth / 2 - 100, screenHeight - 40, 20, GRAY);
+        cpu.Draw();
+        player.Draw();
+
+        DrawText(TextFormat("%i", cpuScore), screenWidth/4 - 20, 20, 80, WHITE);
+        DrawText(TextFormat("%i", playerScore), 3 * screenWidth / 4 - 20, 20, 80, WHITE);
 
         EndDrawing();
     }
 
-    // De-Initialization
     CloseWindow();
-
     return 0;
 }
-
